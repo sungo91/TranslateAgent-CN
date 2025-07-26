@@ -106,7 +106,7 @@ async def lifespan(app: FastAPI):
 
         # 定义系统消息，指导如何使用工具
         system_message = SystemMessage(content=(
-            "你是一个专业的中英翻译员,注意保持专业术语准确和语境自然,保持语义准确和上下文一致性,翻译速度要快"
+            "你是一个专业的中英翻译员,注意保持专业术语准确和语境自然,保持语义准确,翻译速度要快,翻译速度要快,翻译速度要快"
         ))
 
         # 这里使用内存存储 也可以持久化到数据库
@@ -117,11 +117,11 @@ async def lifespan(app: FastAPI):
             model=llm_chat,
             tools=[],
             prompt=system_message,
-            checkpointer=memory,
+            # checkpointer=memory,
         )
 
         # 保存状态图的可视化表示
-        # save_graph_visualization(graph)
+        # save_graph_visualization(agent)
 
     except Exception as e:
         # 捕获并记录其他未预期的异常
@@ -152,7 +152,7 @@ async def get_dependencies() -> Tuple[any]:
         raise HTTPException(status_code=500, detail="Service not initialized")
     return agent
 
-@app.post("/v1/chat/translate")
+@app.post(Config.TRANSLATEAPI)
 async def chat_translate(request: ChatCompletionRequest, dependencies: Tuple[any] = Depends(get_dependencies)):
     """接收来自前端的请求数据进行业务的处理。
 
