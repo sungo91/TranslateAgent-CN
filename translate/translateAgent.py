@@ -7,7 +7,7 @@ import json
 # 用于定义异步上下文管理器
 from contextlib import asynccontextmanager
 # 用于类型提示，定义列表和可选参数
-from typing import List, Tuple
+from typing import List, Tuple, Literal
 # 用于创建Web应用和处理HTTP异常
 from fastapi import FastAPI, HTTPException, Depends
 # 用于返回JSON和流式响应
@@ -77,6 +77,7 @@ class Message(BaseModel):
 class ChatCompletionRequest(BaseModel):
     messages: List[Message]
     stream: Optional[bool] = False
+    translateType: Optional[Literal['en2cn', 'cn2en']] = 'en2cn'
     userId: Optional[str] = None
     conversationId: Optional[str] = None
 
@@ -105,7 +106,7 @@ async def lifespan(app: FastAPI):
 
         # 定义系统消息，指导如何使用工具
         system_message = SystemMessage(content=(
-            "你是一个专业的中英翻译员。"
+            "你是一个专业的中英翻译员,注意保持专业术语准确和语境自然,保持语义准确和上下文一致性,翻译速度要快"
         ))
 
         # 这里使用内存存储 也可以持久化到数据库
@@ -114,6 +115,7 @@ async def lifespan(app: FastAPI):
         # 创建ReAct风格的agent
         agent = create_react_agent(
             model=llm_chat,
+            tools=[],
             prompt=system_message,
             checkpointer=memory,
         )
@@ -177,9 +179,20 @@ async def chat_translate(request: ChatCompletionRequest, dependencies: Tuple[any
             }
         }
 
+        # 在 messages 中拼接一条“控制性” HumanMessage，指定翻译方向
+        if request.translateType == "cn2en":
+            direction_tip = "请将下面这段话翻译成英文："
+        elif request.translateType == "en2cn":
+            direction_tip = "Please translate the following text into Chinese:"
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported translate_type: should be 'cn2en' or 'en2cn'")
+
+        input_message = HumanMessage(content=direction_tip + user_input)
 
         # 调用非流式输出
-        return await agent.ainvoke({"messages": [HumanMessage(content=user_input)]}, config)
+        output_message = await agent.ainvoke({"messages": [input_message]}, config)
+        logger.info(f"The output_message is: {output_message}")
+        return output_message
 
     except Exception as e:
         logger.error(f"Error handling chat completion:\n\n {str(e)}")
