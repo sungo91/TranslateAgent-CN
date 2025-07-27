@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 # 定义后端服务接口的 URL 地址
-url = f"http://localhost:{Config.PORT}{Config.TRANSLATEAPI}"
+url = f"http://127.0.0.1:{Config.PORT}{Config.TRANSLATEAPI}"
 # 定义 HTTP 请求头，指定内容类型为 JSON
 headers = {"Content-Type": "application/json"}
 
@@ -39,7 +39,10 @@ def send_message(user_message, translate_type):
     def update_timer():
         while not stop_event.is_set():
             elapsed = time.time() - start_time
-            status_queue.put(f"翻译中... 已耗时: {elapsed:.3f}s")
+            status_queue.put({
+                "content": "翻译中... ",
+                "elapsed": f"已耗时: {elapsed:.3f}s"
+            })
             time.sleep(0.2)  # 刷新间隔
 
     timer_thread = threading.Thread(target=update_timer)
@@ -49,7 +52,7 @@ def send_message(user_message, translate_type):
     while not stop_event.is_set():
         try:
             msg = status_queue.get(timeout=0.1)
-            yield msg
+            yield msg["content"], msg["elapsed"]
         except queue.Empty:
             continue
 
@@ -65,16 +68,21 @@ def send_message(user_message, translate_type):
                         "userId": "111",
                         "conversationId": "1111"
                     }
-                    response = requests.post(url, headers=headers, data=json.dumps(data))
+                    response = requests.post(url, headers=headers, data=json.dumps(data), timeout=30)
                     response_json = response.json()
                     result = [item['content'] for item in response_json['messages'] if item.get('type') == 'ai']
                     format_result = result[0].split('</think>\n\n')[-1]
                     elapsed = time.time() - start_time
-                    status_queue.put(f"{format_result}\n\n翻译完成，总耗时: {elapsed:.3f}s")
+                    status_queue.put({
+                        "content": format_result,
+                        "elapsed": f"总耗时: {elapsed:.3f}s"
+                    })
                 except Exception as e:
                     elapsed = time.time() - start_time
-                    logger.exception("翻译失败")
-                    status_queue.put(f"翻译失败，总耗时: {elapsed:.3f}s: {str(e)}")
+                    status_queue.put({
+                        "content": "翻译失败",
+                        "elapsed": f"总耗时: {elapsed:.3f}s"
+                    })
                 finally:
                     stop_event.set()
 
@@ -86,7 +94,8 @@ def send_message(user_message, translate_type):
 
     # 输出最终结果
     while not status_queue.empty():
-        yield status_queue.get()
+        msg = status_queue.get()
+        yield msg["content"], msg["elapsed"]
 
 with gr.Blocks() as demo:
     gr.Markdown("## 中英翻译器")
@@ -111,6 +120,9 @@ with gr.Blocks() as demo:
             label="翻译方向",
             value="en2cn"
         )
+        time_text = gr.Textbox(
+            label="耗时"
+        )
 
     with gr.Row():
         input_text = gr.TextArea(
@@ -128,8 +140,8 @@ with gr.Blocks() as demo:
     translate_btn.click(
         fn=send_message,
         inputs=[input_text, direction],
-        outputs=output_text
+        outputs=[output_text, time_text]
     )
 
 if __name__ == "__main__":
-    demo.launch(server_name="127.0.0.1", server_port=7860)
+    demo.launch(server_name="127.0.0.1", server_port=7860, share=False)
