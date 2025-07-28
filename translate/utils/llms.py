@@ -14,11 +14,12 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
 # 模型配置字典
 MODEL_CONFIGS = {
     "ollama": {
-        "base_url": "http://localhost:11434/v1",
+        "base_url": f"{OLLAMA_HOST}/v1",
         "api_key": "ollama",
         "chat_model": "qwen3:8b"
     }

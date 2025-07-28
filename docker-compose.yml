@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  translator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8012:8012"     # FastAPI 服务
+      - "7860:7860"     # Gradio 网页界面
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8012
+      - GRADIO_SERVER_PORT=7860
+      # 关键：让容器访问宿主机的 Ollama
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    extra_hosts:
+      # 解决某些平台 host.docker.internal 不可用的问题
+      - "host.docker.internal:host-gateway"
+    # 如果使用自定义网络或需要更多权限
+    # network_mode: "host"  # 可选：host 模式更简单，但端口映射失效
+    volumes:
+      - ./translate/output:/app/translate/output  # 日志挂载
+    restart: unless-stopped

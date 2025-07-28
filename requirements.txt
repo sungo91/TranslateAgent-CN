@@ -3,13 +3,9 @@ langchain-openai==0.3.6
 fastapi==0.115.8
 uvicorn==0.34.0
 gradio==5.18.0
-langgraph-checkpoint-postgres
-psycopg
-psycopg-pool
 langchain-community==0.3.19                        
 langchain-chroma==0.2.2                        
 pdfminer                     
 pdfminer.six                         
-nltk==3.9.1                      
-psycopg2==2.9.10              
+nltk==3.9.1
 concurrent-log-handler==0.9.25                   
