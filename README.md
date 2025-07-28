@@ -3,7 +3,11 @@
 A local AI-powered translation agent based on the Qwen3 model, built for high-quality Chinese-English and English-Chinese translation.  
 Supports text and file translation, and allows extension with domain-specific knowledge bases to enhance professional translation accuracy.
 
+Support for Docker deployment.
+
 这是一个基于 Qwen3 本地大模型的中英文翻译系统，支持文字与文件翻译，并可扩展翻译知识库，用于提升专业领域（如技术、医学、法律等）的翻译精准度。
+
+支持docker部署。
 
 ---
 
