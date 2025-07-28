@@ -12,7 +12,9 @@ class Config:
 
 
     # 日志持久化存储
-    LOG_FILE = "output/app.log"
+    LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "output")
+    os.makedirs(LOG_DIR, exist_ok=True)
+    LOG_FILE = os.path.join(LOG_DIR, "app.log")
     MAX_BYTES=5*1024*1024,
     BACKUP_COUNT=3
 

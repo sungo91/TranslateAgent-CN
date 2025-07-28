@@ -57,7 +57,8 @@ handler = ConcurrentRotatingFileHandler(
     # 日志文件最大允许大小为5MB，达到上限后触发轮转
     maxBytes = Config.MAX_BYTES,
     # 在轮转时，最多保留3个历史日志文件
-    backupCount = Config.BACKUP_COUNT
+    backupCount = Config.BACKUP_COUNT,
+    encoding='utf-8'
 )
 # 设置处理器级别为DEBUG
 handler.setLevel(logging.DEBUG)
