@@ -182,9 +182,9 @@ async def chat_translate(request: ChatCompletionRequest, dependencies: Tuple[any
 
         # 在 messages 中拼接一条“控制性” HumanMessage，指定翻译方向
         if request.translateType == "cn2en":
-            direction_tip = "请将下面这段话翻译成英文："
+            direction_tip = "将下面这段话翻译成英文："
         elif request.translateType == "en2cn":
-            direction_tip = "Please translate the following text into Chinese:"
+            direction_tip = "Translate the following text into Chinese:"
         else:
             raise HTTPException(status_code=400, detail="Unsupported translate_type: should be 'cn2en' or 'en2cn'")
 
