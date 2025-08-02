@@ -182,3 +182,4 @@ cython_debug/
 .cursorindexingignore
 translate/output/.__app.lock
 translate/output/app.log
+translate/.gradio

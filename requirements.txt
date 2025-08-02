@@ -2,7 +2,7 @@ langgraph==0.2.74
 langchain-openai==0.3.6
 fastapi==0.115.8
 uvicorn==0.34.0
-gradio==5.18.0
+gradio==5.39.0
 langchain-community==0.3.19                        
 langchain-chroma==0.2.2                        
 pdfminer                     

@@ -97,6 +97,29 @@ def send_message(user_message, translate_type):
         msg = status_queue.get()
         yield msg["content"], msg["elapsed"]
 
+
+# >>>>>>>>>>>> 新增的 RAG 知识库功能 <<<<<<<<<<<<
+def load_knowledge_base(file):
+    """
+    处理上传的知识库文件。
+    这是一个占位函数。在实现 RAG 时，你需要在这里：
+    1. 读取文件内容（CSV, TXT, JSON等）。
+    2. 清洗和处理双语数据。
+    3. 使用 Sentence-BERT 等模型生成向量。
+    4. 构建 FAISS 等向量数据库索引。
+    5. 保存索引文件以供翻译时检索。
+    """
+    if not file or not hasattr(file, "name"):
+        return "请先上传知识库文件。"
+
+    # 在这里实现你的 RAG 索引构建逻辑
+    # 例如：
+    # knowledge_base_path = file.name
+    # build_vector_index(knowledge_base_path)  # 假设你有这个函数
+
+    # 目前仅返回一个提示
+    return f"知识库文件 '{file.name}' 已上传。后续将在此处实现RAG索引构建逻辑。"
+
 with gr.Blocks() as demo:
     gr.Markdown("## 中英翻译器")
 
@@ -113,6 +136,26 @@ with gr.Blocks() as demo:
          }
      </style>
      """)
+
+    # >>>>>>>>>>>> 新增的 Accordion 区域 <<<<<<<<<<<<
+    with gr.Accordion("RAG 知识库管理 (用于增强翻译)", open=False):
+        gr.Markdown("上传您的双语语料库（如 CSV, TXT），以启用检索增强翻译功能。")
+        with gr.Row():
+            kb_file_input = gr.File(
+                label="上传知识库文件",
+                file_types=[".csv", ".txt", ".json"],  # 限制文件类型
+                file_count="single"  # 只允许单个文件
+            )
+        kb_load_btn = gr.Button("加载并构建知识库索引")
+        kb_status_output = gr.Textbox(label="状态信息")
+
+        # 将上传的文件和加载按钮连接到处理函数
+        kb_load_btn.click(
+            fn=load_knowledge_base,
+            inputs=[kb_file_input],
+            outputs=[kb_status_output]
+        )
+
 
     with gr.Row():
         direction = gr.Radio(
@@ -144,4 +187,4 @@ with gr.Blocks() as demo:
     )
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860, share=False)
+    demo.launch(server_name="0.0.0.0", server_port=7860, share=False, show_api=False)
