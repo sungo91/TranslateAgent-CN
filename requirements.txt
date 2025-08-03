@@ -8,4 +8,5 @@ langchain-chroma==0.2.2
 pdfminer                     
 pdfminer.six                         
 nltk==3.9.1
-concurrent-log-handler==0.9.25                   
+concurrent-log-handler==0.9.25
+sentence_transformers==5.0.0

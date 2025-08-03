@@ -183,3 +183,5 @@ cython_debug/
 translate/output/.__app.lock
 translate/output/app.log
 translate/.gradio
+translate/chroma_db
+translate/models

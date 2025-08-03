@@ -4,14 +4,16 @@ import gradio as gr
 import requests
 # 导入 json 库，用于处理 JSON 数据
 import json
-
 import time
 import threading
 import queue
+from typing import List, Dict
 # 导入统一的 Config 类
 from utils.config import Config
 # 导入 logging 库，用于记录日志
 import logging
+
+from rag_manager import get_collections_list, build_knowledge_base, delete_collections
 
 """
 @File    : webUI.py
@@ -29,6 +31,7 @@ logger = logging.getLogger(__name__)
 url = f"http://127.0.0.1:{Config.PORT}{Config.TRANSLATEAPI}"
 # 定义 HTTP 请求头，指定内容类型为 JSON
 headers = {"Content-Type": "application/json"}
+
 
 def send_message(user_message, translate_type):
     start_time = time.time()
@@ -98,28 +101,6 @@ def send_message(user_message, translate_type):
         yield msg["content"], msg["elapsed"]
 
 
-# >>>>>>>>>>>> 新增的 RAG 知识库功能 <<<<<<<<<<<<
-def load_knowledge_base(file):
-    """
-    处理上传的知识库文件。
-    这是一个占位函数。在实现 RAG 时，你需要在这里：
-    1. 读取文件内容（CSV, TXT, JSON等）。
-    2. 清洗和处理双语数据。
-    3. 使用 Sentence-BERT 等模型生成向量。
-    4. 构建 FAISS 等向量数据库索引。
-    5. 保存索引文件以供翻译时检索。
-    """
-    if not file or not hasattr(file, "name"):
-        return "请先上传知识库文件。"
-
-    # 在这里实现你的 RAG 索引构建逻辑
-    # 例如：
-    # knowledge_base_path = file.name
-    # build_vector_index(knowledge_base_path)  # 假设你有这个函数
-
-    # 目前仅返回一个提示
-    return f"知识库文件 '{file.name}' 已上传。后续将在此处实现RAG索引构建逻辑。"
-
 with gr.Blocks() as demo:
     gr.Markdown("## 中英翻译器")
 
@@ -127,35 +108,102 @@ with gr.Blocks() as demo:
     gr.HTML("""
      <style>
          #input-area textarea {
-             height: 60vh !important;
+             height: 35vh !important;
              resize: vertical;
          }
          #output-area textarea {
-             height: 60vh !important;
+             height: 35vh !important;
              resize: vertical;
          }
+         .gr-button-secondary { background-color: #dc3545; color: white; } /* 红色删除按钮 */
      </style>
      """)
 
-    # >>>>>>>>>>>> 新增的 Accordion 区域 <<<<<<<<<<<<
-    with gr.Accordion("RAG 知识库管理 (用于增强翻译)", open=False):
+    # >>>>>>>>>>>> Accordion 区域 <<<<<<<<<<<<
+    with gr.Accordion("📚 RAG 知识库管理 (用于增强翻译)", open=False):
         gr.Markdown("上传您的双语语料库（如 CSV, TXT），以启用检索增强翻译功能。")
+        # 上传区
         with gr.Row():
             kb_file_input = gr.File(
-                label="上传知识库文件",
+                label="上传知识库文件,请使用英文文件名",
                 file_types=[".csv", ".txt", ".json"],  # 限制文件类型
                 file_count="single"  # 只允许单个文件
             )
-        kb_load_btn = gr.Button("加载并构建知识库索引")
-        kb_status_output = gr.Textbox(label="状态信息")
+        kb_load_btn = gr.Button("🧠 构建向量数据库")
+        kb_status_output = gr.Textbox(label="操作状态")
 
-        # 将上传的文件和加载按钮连接到处理函数
-        kb_load_btn.click(
-            fn=load_knowledge_base,
-            inputs=[kb_file_input],
-            outputs=[kb_status_output]
+        # 知识库列表区
+        gr.Markdown("### 已加载的知识库")
+        # 使用 State 来存储当前的知识库列表
+        kb_list_state = gr.State(value=get_collections_list())  # 初始化状态
+
+        # Dropdown 用于选择要删除的知识库（支持多选）
+        kb_dropdown = gr.Dropdown(
+            label="选择要删除的知识库",
+            choices=[],  # 初始为空，稍后填充
+            value=[],  # 初始为空
+            multiselect=True,
+            interactive=True
         )
 
+        # 操作按钮
+        with gr.Row():
+            refresh_list_btn = gr.Button("🔄 刷新列表")
+            delete_selected_btn = gr.Button("🗑️ 删除选中", variant="secondary")
+
+        # >>>>>>>>>>>> 事件处理 <<<<<<<<<<<<
+        # 加载知识库
+        kb_load_btn.click(
+            fn=build_knowledge_base,
+            inputs=[kb_file_input, kb_list_state],
+            outputs=[kb_list_state, kb_status_output]
+        ).then(
+            # 加载完成后刷新列表显示
+            fn=lambda kb_list: gr.update(choices=[kb["Name"] for kb in kb_list]),
+            inputs=[kb_list_state],
+            outputs=[kb_dropdown]
+        ).then(
+            fn=lambda: gr.update(value=[]),
+            inputs=[],
+            outputs=[kb_dropdown]
+        )
+
+        # 刷新列表
+        refresh_list_btn.click(
+            fn=get_collections_list,
+            inputs=[],
+            outputs=[kb_list_state]
+        ).then(
+            fn=lambda kb_list: gr.update(choices=[kb["Name"] for kb in kb_list]),
+            inputs=[kb_list_state],
+            outputs=[kb_dropdown]
+        ).then(
+            fn=lambda: gr.update(value=[]),
+            inputs=[],
+            outputs=[kb_dropdown]
+        )
+
+        # 删除选中
+        delete_selected_btn.click(
+            fn=delete_collections,
+            inputs=[kb_dropdown, kb_list_state],
+            outputs=[kb_list_state, kb_status_output]
+        ).then(
+            fn=lambda kb_list: gr.update(choices=[kb["Name"] for kb in kb_list]),
+            inputs=[kb_list_state],
+            outputs=[kb_dropdown]
+        ).then(
+            fn=lambda: gr.update(value=[]),
+            inputs=[],
+            outputs=[kb_dropdown]
+        )
+
+        # 页面首次加载时，生成初始列表
+        demo.load(
+            fn=lambda kb_list: gr.update(choices=[kb["Name"] for kb in kb_list]),
+            inputs=[kb_list_state],
+            outputs=[kb_dropdown]
+        )
 
     with gr.Row():
         direction = gr.Radio(
@@ -179,7 +227,7 @@ with gr.Blocks() as demo:
             elem_id="output-area"
         )
 
-    translate_btn = gr.Button("翻译")
+    translate_btn = gr.Button("🚀 翻译")
     translate_btn.click(
         fn=send_message,
         inputs=[input_text, direction],
