@@ -121,12 +121,13 @@ with gr.Blocks() as demo:
 
     # >>>>>>>>>>>> Accordion 区域 <<<<<<<<<<<<
     with gr.Accordion("📚 RAG 知识库管理 (用于增强翻译)", open=False):
-        gr.Markdown("上传您的双语语料库（如 CSV, TXT），以启用检索增强翻译功能。")
+        gr.Markdown("上传您的双语语料库（需.CSV格式），以启用检索增强翻译功能。")
         # 上传区
         with gr.Row():
             kb_file_input = gr.File(
                 label="上传知识库文件,请使用英文文件名",
-                file_types=[".csv", ".txt", ".json"],  # 限制文件类型
+                # file_types=[".csv", ".txt", ".json"],  # 限制文件类型
+                file_types=[".csv"],  # 限制文件类型
                 file_count="single"  # 只允许单个文件
             )
         kb_load_btn = gr.Button("🧠 构建向量数据库")
