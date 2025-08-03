@@ -22,13 +22,18 @@ MODEL_CONFIGS = {
         "base_url": f"{OLLAMA_HOST}/v1",
         "api_key": "ollama",
         "chat_model": "qwen3:8b"
+    },
+    "chatglm": {
+        "base_url": "https://open.bigmodel.cn/api/paas/v4/",
+        "api_key": "api_key",
+        "chat_model": "glm-4-flash"
     }
 }
 
 
 # 默认配置
 DEFAULT_LLM_TYPE = "ollama"
-DEFAULT_TEMPERATURE = 0.7
+DEFAULT_TEMPERATURE = 0.6
 
 
 class LLMInitializationError(Exception):

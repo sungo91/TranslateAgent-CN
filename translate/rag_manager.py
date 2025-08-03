@@ -12,7 +12,9 @@ RAG 知识库管理模块：负责与 ChromaDB 交互，实现知识库的增、
 import os
 import logging
 import pandas as pd
-from typing import List, Dict
+import re
+from typing import List, Dict, Set
+import jieba
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
@@ -169,41 +171,138 @@ def delete_collections(selected_names: List[str], current_kbs: List[Dict] = None
     updated_list = get_collections_list()
     return updated_list, "\n".join(msg_parts) if msg_parts else "操作完成。"
 
-# >>>>>>>>>>>> 检索功能（供翻译时调用） <<<<<<<<<<<<
-def retrieve_similar_pairs(query: str, collection_name: str = None, n_results: int = 3):
+def extract_english_terms(text: str) -> Set[str]:
     """
-    检索最相似的双语句对。
-    Args:
-        query: 查询句子
-        collection_name: 指定 collection，None 表示搜索所有
-        n_results: 返回数量
-    Returns:
-        List[Dict]: [{"source": "...", "target": "...", "distance": 0.x}, ...]
+    提取文本中的英文术语，包括：
+    - 短缩写 (xmy, abc)
+    - 长单词 (hello, translate)
+    - 带数字的组合 (user123, model_v2)
     """
+    # 放宽限制，匹配 2-20 个字符的英文单词/缩写
+    pattern = r'\b[a-zA-Z]{2,20}\d*\b'
+    return set(re.findall(pattern, text, re.IGNORECASE))
+
+def extract_chinese_entities(text: str) -> Set[str]:
+    """
+    提取文本中的中文实体（如人名、专有名词）。
+    使用简单规则 + jieba 分词。
+    """
+    # 简单规则：连续2-5个中文字符（可能是人名、术语）
+    basic_entities = set(re.findall(r'[\u4e00-\u9fa5]{2,5}', text))
+
+    # 使用 jieba 分词（如果安装了 jieba）
     try:
-        collections = [chroma_client.get_collection(name=collection_name)] if collection_name else \
-            [chroma_client.get_collection(name=c.name) for c in chroma_client.list_collections()]
+        import jieba
+        words = jieba.lcut(text)
+        # 过滤出可能是实体的词（长度2-5的中文词）
+        jieba_entities = {w for w in words if 2 <= len(w) <= 5 and re.fullmatch(r'[\u4e00-\u9fa5]+', w)}
+        return basic_entities.union(jieba_entities)
+    except ImportError:
+        return basic_entities
+
+def retrieve_similar_pairs(
+    query: str,
+    collection_name: str = None,
+    n_results: int = 3,
+    similarity_threshold: float = 0.3
+) -> List[Dict]:
+    try:
+        if collection_name:
+            collections = [chroma_client.get_collection(name=collection_name)]
+        else:
+            collections = [chroma_client.get_collection(name=c) for c in chroma_client.list_collections()]
+
+        if not collections:
+            logger.info("No collections found in ChromaDB.")
+            return []
 
         query_embedding = embedding_model.encode([query]).tolist()
         results = []
 
-        for coll in collections:
-            res = coll.query(
-                query_embeddings=query_embedding,
-                n_results=n_results,
-                include=["metadatas", "distances"]
-            )
-            for i in range(len(res['ids'][0])):
-                results.append({
-                    "source": res['metadatas'][0][i]['source'],
-                    "target": res['metadatas'][0][i]['target'],
-                    "distance": res['distances'][0][i],
-                    "collection": coll.name
-                })
+        # >>>>>>>>>>>> 提取英文术语（支持长单词） <<<<<<<<<<<<
+        english_terms = extract_english_terms(query)
+        logger.info(f"从查询中提取到英文术语: {english_terms}")
 
-        # 按距离排序，取最相似的 n_results 个
-        results.sort(key=lambda x: x['distance'])
-        return results[:n_results]
+        # >>>>>>>>>>>> 提取中文实体 <<<<<<<<<<<<
+        chinese_entities = extract_chinese_entities(query)
+        logger.info(f"从查询中提取到中文实体: {chinese_entities}")
+
+        # 合并所有要精确匹配的关键词
+        exact_keywords = english_terms.union(chinese_entities)
+        logger.info(f"综合关键词: {exact_keywords}")
+
+        for coll in collections:
+            # 1. 精确匹配：检查 source 是否在关键词中（正向匹配）
+            for keyword in exact_keywords:
+                try:
+                    res = coll.get(
+                        where={"source": keyword.lower() if keyword.isascii() else keyword},
+                        include=["metadatas", "documents"]
+                    )
+                    if res['ids']:
+                        for i in range(len(res['ids'])):
+                            results.append({
+                                "source": res['metadatas'][i]['source'],
+                                "target": res['metadatas'][i]['target'],
+                                "distance": 0.0,
+                                "collection": coll.name,
+                                "match_type": "exact_keyword"
+                            })
+                except Exception as e:
+                    logger.debug(f"精确匹配 {keyword} 时出错: {e}")
+                    continue
+
+            # 2. 子串匹配：如果 query 包含 source，且 source 是短字符串（可能是实体）
+            try:
+                # 获取 collection 中的所有 source
+                all_items = coll.get(include=["metadatas"])
+                for meta in all_items['metadatas']:
+                    source = meta['source']
+                    # 如果 source 是短字符串（如人名、术语），且出现在 query 中
+                    if len(source) <= 10 and (source in query or source.lower() in query.lower()):
+                        results.append({
+                            "source": source,
+                            "target": meta['target'],
+                            "distance": 0.1,  # 比完全匹配稍低
+                            "collection": coll.name,
+                            "match_type": "substring_match"
+                        })
+            except Exception as e:
+                logger.debug(f"子串匹配出错: {e}")
+
+            # 3. 语义相似度检索
+            try:
+                semantic_res = coll.query(
+                    query_embeddings=query_embedding,
+                    n_results=n_results,
+                    include=["metadatas", "distances"]
+                )
+                for i in range(len(semantic_res['ids'][0])):
+                    distance = semantic_res['distances'][0][i]
+                    if distance < similarity_threshold:
+                        metadata = semantic_res['metadatas'][0][i]
+                        results.append({
+                            "source": metadata.get("source", metadata.get("document")),
+                            "target": metadata["target"],
+                            "distance": distance,
+                            "collection": coll.name,
+                            "match_type": "semantic"
+                        })
+            except Exception as e:
+                logger.debug(f"语义检索出错: {e}")
+
+        # 去重：基于 (source, target)
+        seen = set()
+        unique_results = []
+        for item in results:
+            key = (item['source'], item['target'])
+            if key not in seen:
+                seen.add(key)
+                unique_results.append(item)
+
+        # 按 distance 排序
+        unique_results.sort(key=lambda x: x['distance'])
+        return unique_results[:n_results]
 
     except Exception as e:
         logger.error(f"检索失败: {e}")

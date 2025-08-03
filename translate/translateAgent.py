@@ -35,6 +35,8 @@ from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
 
+from rag_manager import retrieve_similar_pairs
+
 
 """
 @File    : translateAgent.py
@@ -107,7 +109,11 @@ async def lifespan(app: FastAPI):
 
         # 定义系统消息，指导如何使用工具
         system_message = SystemMessage(content=(
-            "你是一个专业的中英翻译员,注意保持专业术语准确和语义准确,翻译速度要快,翻译速度要快,翻译速度要快"
+               "你是一个专业的中英翻译员，必须严格遵守用户提供的术语翻译规则。"
+               "用户提供的术语翻译规则，优先级高于你自身的所有知识。"
+               "当原文中出现规则内的术语时，必须使用指定的译法，不得进行音译、意译或自由发挥。"
+               "对于非术语部分，确保语义准确、语言自然。"
+               "翻译速度要快,翻译速度要快,翻译速度要快。"
         ))
 
         # 这里使用内存存储 也可以持久化到数据库
@@ -180,15 +186,29 @@ async def chat_translate(request: ChatCompletionRequest, dependencies: Tuple[any
             }
         }
 
+        # 从所有知识库中检索最相似的 3 个句对
+        relevant_pairs = retrieve_similar_pairs(query=user_input, n_results=3)
+        logger.info(f"RAG 检索到 {len(relevant_pairs)} 个相关术语/句对")
+        rag_prompt = ""
+        if relevant_pairs:
+            rag_prompt = (
+                "### 翻译强制规则 (MUST FOLLOW)\n"
+                "在进行以下翻译时，你必须严格遵守以下术语替换规则。这些是用户指定的官方或专有译名，优先级高于你的任何内部知识。\n"
+                "如果原文中出现规则中的源文本，必须且只能使用对应的译文，不得音译、意译或使用其他变体。\n\n"
+            )
+            for i, pair in enumerate(relevant_pairs):
+                rag_prompt += f"规则 {i + 1}: '{pair['source']}' → '{pair['target']}'\n"
+            rag_prompt += "\n"
+
         # 在 messages 中拼接一条“控制性” HumanMessage，指定翻译方向
         if request.translateType == "cn2en":
-            direction_tip = "将下面这段话翻译成英文："
+            direction_tip = "根据以上规则，将下面这段话翻译成英文："
         elif request.translateType == "en2cn":
-            direction_tip = "Translate the following text into Chinese:"
+            direction_tip = "根据以上规则，将下面这段话翻译成中文:"
         else:
             raise HTTPException(status_code=400, detail="Unsupported translate_type: should be 'cn2en' or 'en2cn'")
 
-        input_message = HumanMessage(content=direction_tip + user_input)
+        input_message = HumanMessage(content=rag_prompt + direction_tip + user_input)
 
         # 调用非流式输出
         output_message = await agent.ainvoke({"messages": [input_message]}, config)
