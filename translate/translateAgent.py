@@ -35,7 +35,7 @@ from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
 
-from rag_manager import retrieve_similar_pairs
+from rag_manager import ragManager
 
 
 """
@@ -187,7 +187,7 @@ async def chat_translate(request: ChatCompletionRequest, dependencies: Tuple[any
         }
 
         # 从所有知识库中检索最相似的 3 个句对
-        relevant_pairs = retrieve_similar_pairs(query=user_input, n_results=3)
+        relevant_pairs = ragManager.retrieve_similar_pairs(query=user_input, n_results=3)
         logger.info(f"RAG 检索到 {len(relevant_pairs)} 个相关术语/句对")
         rag_prompt = ""
         if relevant_pairs:

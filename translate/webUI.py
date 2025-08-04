@@ -13,7 +13,7 @@ from utils.config import Config
 # 导入 logging 库，用于记录日志
 import logging
 
-from rag_manager import get_collections_list, build_knowledge_base, delete_collections
+from rag_manager import ragManager
 
 """
 @File    : webUI.py
@@ -136,7 +136,7 @@ with gr.Blocks() as demo:
         # 知识库列表区
         gr.Markdown("### 已加载的知识库")
         # 使用 State 来存储当前的知识库列表
-        kb_list_state = gr.State(value=get_collections_list())  # 初始化状态
+        kb_list_state = gr.State(value=ragManager.get_collections_list())  # 初始化状态
 
         # Dropdown 用于选择要删除的知识库（支持多选）
         kb_dropdown = gr.Dropdown(
@@ -155,7 +155,7 @@ with gr.Blocks() as demo:
         # >>>>>>>>>>>> 事件处理 <<<<<<<<<<<<
         # 加载知识库
         kb_load_btn.click(
-            fn=build_knowledge_base,
+            fn=ragManager.build_knowledge_base,
             inputs=[kb_file_input, kb_list_state],
             outputs=[kb_list_state, kb_status_output]
         ).then(
@@ -171,7 +171,7 @@ with gr.Blocks() as demo:
 
         # 刷新列表
         refresh_list_btn.click(
-            fn=get_collections_list,
+            fn=ragManager.get_collections_list,
             inputs=[],
             outputs=[kb_list_state]
         ).then(
@@ -186,7 +186,7 @@ with gr.Blocks() as demo:
 
         # 删除选中
         delete_selected_btn.click(
-            fn=delete_collections,
+            fn=ragManager.delete_collections,
             inputs=[kb_dropdown, kb_list_state],
             outputs=[kb_list_state, kb_status_output]
         ).then(
