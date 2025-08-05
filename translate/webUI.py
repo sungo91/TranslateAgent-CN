@@ -14,6 +14,7 @@ from utils.config import Config
 import logging
 
 from rag_manager import ragManager
+from tts_edge_module import tts_manager
 
 """
 @File    : webUI.py
@@ -100,6 +101,13 @@ def send_message(user_message, translate_type):
         msg = status_queue.get()
         yield msg["content"], msg["elapsed"]
 
+def play_translation(text):
+    """
+    调用 TTS 模块播报翻译结果。
+    """
+    if not text or text == "翻译失败":
+        return None
+    return tts_manager.text_to_speech(text)
 
 with gr.Blocks() as demo:
     gr.Markdown("## 中英翻译器")
@@ -110,12 +118,37 @@ with gr.Blocks() as demo:
          #input-area textarea {
              height: 35vh !important;
              resize: vertical;
+             margin-top: 0.25em !important;
          }
          #output-area textarea {
              height: 35vh !important;
              resize: vertical;
+             margin-top: 0.25em !important;
          }
-         .gr-button-secondary { background-color: #dc3545; color: white; } /* 红色删除按钮 */
+         #tts-play-btn {
+             width: 32px !important;
+             height: 32px !important;
+             min-width: 32px !important;
+             border-radius: 4px !important; /* 较小的圆角 */
+             padding: 0 !important;
+             margin-left: 0.5em;
+             border: 1px solid #cccccc !important;
+             background-color: white !important;
+             font-size: 14px !important;
+             color: #333333 !important;
+         }
+         #tts-play-btn:hover {
+             background-color: #f0f0f0 !important;
+             border-color: #999999 !important;
+         }
+         #translate-btn {
+             font-weight: bold;
+             margin-top: 0.5em;
+         }
+         #output-label {
+             margin-bottom: 0;
+             font-weight: bold;
+         }
      </style>
      """)
 
@@ -217,22 +250,53 @@ with gr.Blocks() as demo:
         )
 
     with gr.Row():
-        input_text = gr.TextArea(
-            label="输入文本",
-            placeholder="请输入要翻译的内容",
-            elem_id="input-area"
-        )
-        output_text = gr.Textbox(
-            label="翻译结果",
-            show_copy_button=True,
-            elem_id="output-area"
-        )
+        with gr.Column():
+            with gr.Row():
+                gr.Markdown("**输入文本**", elem_id="output-label")  # 模拟 Label
+                # 小型播放按钮
+                input_tts_btn = gr.Button("🔊", elem_id="tts-play-btn", variant="secondary")
 
-    translate_btn = gr.Button("🚀 翻译")
+            input_text = gr.TextArea(
+                placeholder="请输入要翻译的内容",
+                elem_id="input-area",
+                label=None
+            )
+
+        with gr.Column():
+            with gr.Row():
+                gr.Markdown("**翻译结果**", elem_id="output-label")  # 模拟 Label
+                # 小型播放按钮
+                output_tts_btn = gr.Button("🔊", elem_id="tts-play-btn", variant="secondary")
+
+            output_text = gr.Textbox(
+                show_copy_button=True,
+                elem_id="output-area",
+                label=None
+            )
+
+    translate_btn = gr.Button("🚀 翻译", elem_id="translate-btn")
     translate_btn.click(
         fn=send_message,
         inputs=[input_text, direction],
         outputs=[output_text, time_text]
+    )
+
+    audio_output = gr.Audio(
+        label="播放语音",
+        autoplay=True,
+        visible=False
+    )
+
+    input_tts_btn.click(
+        fn=play_translation,
+        inputs=[input_text],
+        outputs=[audio_output]
+    )
+
+    output_tts_btn.click(
+        fn=play_translation,
+        inputs=[output_text],
+        outputs=[audio_output]
     )
 
 if __name__ == "__main__":

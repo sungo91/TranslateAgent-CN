@@ -10,6 +10,9 @@ RAG 知识库管理模块：负责与 ChromaDB 交互，实现知识库的增、
 """
 
 import os
+os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+os.environ['CHROMA_TELEMETRY_ENABLED'] = 'false'  # 关闭遥测
+
 import logging
 import pandas as pd
 import re
@@ -22,11 +25,6 @@ from sentence_transformers import SentenceTransformer
 # 初始化日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-# 在导入 SentenceTransformer 之前设置环境变量
-# 1. 设置 Hugging Face 镜像
-os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
-os.environ['CHROMA_TELEMETRY_ENABLED'] = 'false'  # 关闭遥测
 
 # >>>>>>>>>>>> 配置 <<<<<<<<<<<<
 CHROMA_DB_DIR = "./chroma_db"
