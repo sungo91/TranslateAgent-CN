@@ -241,11 +241,12 @@ with gr.Blocks() as demo:
     with gr.Row():
         direction = gr.Radio(
             choices=[("英译中", "en2cn"), ("中译英", "cn2en")],
-            label="翻译方向",
-            value="en2cn"
+            value="en2cn",
+            show_label=False
         )
         time_text = gr.Textbox(
-            label="耗时"
+            placeholder="耗时",
+            show_label=False
         )
 
     with gr.Row():
