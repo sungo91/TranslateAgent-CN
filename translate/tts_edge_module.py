@@ -8,6 +8,8 @@
 import os
 import logging
 import asyncio
+import time
+
 import edge_tts
 
 # 设置日志
@@ -16,8 +18,6 @@ logger = logging.getLogger(__name__)
 
 # 配置
 OUTPUT_DIR = "./models/tts_output"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, "edge_tts_output.mp3")
 
 # 音色映射表
 VOICE_PROFILES = {
@@ -39,10 +39,24 @@ class EdgeTTSManager:
             return None
 
         try:
+            # 清空音频目录
+            if os.path.exists(OUTPUT_DIR):
+                for filename in os.listdir(OUTPUT_DIR):
+                    file_path = os.path.join(OUTPUT_DIR, filename)
+                    try:
+                        if os.path.isfile(file_path):
+                            os.remove(file_path)
+                    except Exception as e:
+                        print(f"清理旧音频失败: {e}")
+            else:
+                os.makedirs(OUTPUT_DIR, exist_ok=True)
+
             communicate = edge_tts.Communicate(text, voice)
-            await communicate.save(OUTPUT_FILE)
+            timestamp = int(time.time() * 1000)
+            output_path = os.path.join(OUTPUT_DIR, f"edge_tts_{timestamp}.mp3")
+            await communicate.save(output_path)
             logger.info(f"TTS 播报 ({voice}): {text}")
-            return OUTPUT_FILE
+            return output_path
         except Exception as e:
             logger.error(f"Edge TTS 转换失败: {e}")
             return None

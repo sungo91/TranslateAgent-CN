@@ -126,16 +126,12 @@ with gr.Blocks() as demo:
              margin-top: 0.25em !important;
          }
          #tts-play-btn {
-             width: 32px !important;
-             height: 32px !important;
-             min-width: 32px !important;
-             border-radius: 4px !important; /* 较小的圆角 */
+             width: 24px !important;
+             height: 24px !important;
+             min-width: 24px !important;
              padding: 0 !important;
-             margin-left: 0.5em;
-             border: 1px solid #cccccc !important;
-             background-color: white !important;
-             font-size: 14px !important;
-             color: #333333 !important;
+             margin-left: 0.25em !important;
+             font-size: 12px !important;
          }
          #tts-play-btn:hover {
              background-color: #f0f0f0 !important;
@@ -148,6 +144,9 @@ with gr.Blocks() as demo:
          #output-label {
              margin-bottom: 0;
              font-weight: bold;
+         }
+         #audio-player {
+             display: none;
          }
      </style>
      """)
@@ -259,7 +258,7 @@ with gr.Blocks() as demo:
             input_text = gr.TextArea(
                 placeholder="请输入要翻译的内容",
                 elem_id="input-area",
-                label=None
+                show_label=False
             )
 
         with gr.Column():
@@ -271,7 +270,7 @@ with gr.Blocks() as demo:
             output_text = gr.Textbox(
                 show_copy_button=True,
                 elem_id="output-area",
-                label=None
+                show_label=False
             )
 
     translate_btn = gr.Button("🚀 翻译", elem_id="translate-btn")
@@ -282,9 +281,11 @@ with gr.Blocks() as demo:
     )
 
     audio_output = gr.Audio(
-        label="播放语音",
         autoplay=True,
-        visible=False
+        visible=True,
+        interactive=False,
+        show_label=False,
+        elem_id="audio-player"
     )
 
     input_tts_btn.click(
