@@ -1,6 +1,7 @@
 import os
 from langchain_openai import ChatOpenAI,OpenAIEmbeddings
 import logging
+from dotenv import load_dotenv
 
 """
 @File    : llms.py
@@ -9,6 +10,8 @@ import logging
 @Date    : 2025/7/25 00:51
 """
 
+# 加载.env文件
+load_dotenv()
 
 # 设置日志模版
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -16,17 +19,17 @@ logger = logging.getLogger(__name__)
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
-# 模型配置字典
+# 模型配置字典从环境变量读取
 MODEL_CONFIGS = {
     "ollama": {
-        "base_url": f"{OLLAMA_HOST}/v1",
-        "api_key": "ollama",
-        "chat_model": "qwen3:8b"
+        "base_url": os.getenv("OLLAMA_BASE_URL", f"{OLLAMA_HOST}/v1"),
+        "api_key": os.getenv("OLLAMA_API_KEY", "ollama"),
+        "chat_model": os.getenv("OLLAMA_CHAT_MODEL", "qwen3:8b")
     },
     "chatglm": {
-        "base_url": "https://open.bigmodel.cn/api/paas/v4/",
-        "api_key": "api_key",
-        "chat_model": "glm-4-flash"
+        "base_url": os.getenv("CHATGLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4/"),
+        "api_key": os.getenv("CHATGLM_API_KEY", "api_key"),
+        "chat_model": os.getenv("CHATGLM_CHAT_MODEL", "glm-4-flash")
     }
 }
 
