@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 # 用于类型提示，定义列表和可选参数
 from typing import List, Tuple, Literal
 # 用于创建Web应用和处理HTTP异常
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
 # 用于返回JSON和流式响应
 from fastapi.responses import JSONResponse, StreamingResponse
 # 用于运行FastAPI应用
@@ -84,6 +84,9 @@ class ChatCompletionRequest(BaseModel):
     userId: Optional[str] = None
     conversationId: Optional[str] = None
 
+# 定义用于删除知识库的请求模型
+class DeleteCollectionsRequest(BaseModel):
+    names: List[str]
 
 # 管理 FastAPI 应用生命周期的异步上下文管理器，负责启动和关闭时的初始化与清理
 @asynccontextmanager
@@ -217,6 +220,56 @@ async def chat_translate(request: ChatCompletionRequest, dependencies: Tuple[any
 
     except Exception as e:
         logger.error(f"Error handling chat completion:\n\n {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# >>>>>>>>>>>> RAG 管理 API <<<<<<<<<<<<
+
+@app.get("/api/rag/collections")
+async def get_collections():
+    """
+    获取所有知识库列表
+    """
+    try:
+        collections = ragManager.get_collections_list()
+        return collections
+    except Exception as e:
+        logger.error(f"获取知识库列表失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/rag/collections")
+async def create_collection(file: UploadFile = File(...)):
+    """
+    上传文件并构建知识库
+    """
+    try:
+        # 保存上传的文件
+        # file_path = f"temp_{int(time.time())}_{file.filename}"
+        file_path = file.filename
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        
+        # 构建知识库
+        updated_list, message = ragManager.build_knowledge_base(file_path)
+        
+        # 删除临时文件
+        os.remove(file_path)
+        
+        return {"message": message}
+    except Exception as e:
+        logger.error(f"构建知识库失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/rag/collections")
+async def delete_collections(request: DeleteCollectionsRequest):
+    """
+    删除指定的知识库
+    """
+    try:
+        updated_list, message = ragManager.delete_collections(request.names)
+        return {"message": message}
+    except Exception as e:
+        logger.error(f"删除知识库失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
