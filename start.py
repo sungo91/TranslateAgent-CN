@@ -9,12 +9,20 @@ import os
 
 def download_models():
     """下载模型文件"""
+    # 检查是否已经下载过模型
+    if os.path.exists('.models_downloaded'):
+        print("模型已存在，跳过下载...")
+        return True
+        
     print("开始下载模型...")
     try:
         # 执行下载模型的脚本
         result = subprocess.run([sys.executable, 'download_models.py'], 
                               check=True, capture_output=True, text=True)
         print("模型下载完成")
+        # 创建标记文件
+        with open('.models_downloaded', 'w') as f:
+            f.write('Models downloaded at ' + result.stdout)
         return True
     except subprocess.CalledProcessError as e:
         print(f"模型下载失败: {e}")
@@ -22,6 +30,9 @@ def download_models():
         return False
     except FileNotFoundError:
         print("未找到download_models.py文件，跳过模型下载步骤")
+        # 即使文件不存在，也创建标记文件避免后续重复尝试
+        with open('.models_downloaded', 'w') as f:
+            f.write('No download_models.py file found')
         return True
 
 def start_services():
