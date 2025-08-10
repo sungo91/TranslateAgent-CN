@@ -12,3 +12,4 @@ concurrent-log-handler==0.9.25
 sentence_transformers==5.0.0
 jieba==0.42.1
 edge-tts==7.0.2
+modelscope==1.28.2

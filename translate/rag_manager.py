@@ -10,7 +10,6 @@ RAG 知识库管理模块：负责与 ChromaDB 交互，实现知识库的增、
 """
 
 import os
-os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
 os.environ['CHROMA_TELEMETRY_ENABLED'] = 'false'  # 关闭遥测
 
 import logging
@@ -31,7 +30,7 @@ CHROMA_DB_DIR = "./chroma_db"
 os.makedirs(CHROMA_DB_DIR, exist_ok=True)
 
 # 模型路径
-LOCAL_MODEL_PATH = "./models/embeddings/multilingual-minilm"
+LOCAL_MODEL_PATH = "./models/embeddings"
 
 class RAGManager:
     def __init__(self):
@@ -47,7 +46,7 @@ class RAGManager:
         )
 
         if not os.path.exists(LOCAL_MODEL_PATH):
-            raise FileNotFoundError(f"模型未找到: {LOCAL_MODEL_PATH}。请先使用 hfd 下载。")
+            raise FileNotFoundError(f"模型未找到: {LOCAL_MODEL_PATH}，请先运行download_models.py下载模型。")
 
         # 加载本地模型（离线）
         self.embedding_model = SentenceTransformer(

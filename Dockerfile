@@ -20,5 +20,5 @@ RUN mkdir -p translate/output && chmod -R 777 translate/output
 # 暴露端口
 EXPOSE 8012 7860
 
-# 使用启动脚本
-CMD ["./start.sh"]
+# 直接运行Python启动文件
+CMD ["python", "start.py"]
