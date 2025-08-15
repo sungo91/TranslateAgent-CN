@@ -40,7 +40,7 @@ def start_services():
     print("启动translateAgent和webUI服务...")
     
     # 在后台启动 FastAPI 服务
-    fastapi_process = subprocess.Popen([sys.executable, 'translate/translateAgent.py'])
+    fastapi_process = subprocess.Popen([sys.executable, 'translateAgent.py'])
     print("FastAPI服务已启动")
     
     # 给 FastAPI 一点时间启动（可选）
@@ -48,7 +48,7 @@ def start_services():
     time.sleep(2)
     
     # 前台启动 Gradio（主进程，保持容器不退出）
-    gradio_process = subprocess.Popen([sys.executable, 'translate/webUI.py'])
+    gradio_process = subprocess.Popen([sys.executable, 'webUI.py'])
     print("Gradio服务已启动")
     
     try:
