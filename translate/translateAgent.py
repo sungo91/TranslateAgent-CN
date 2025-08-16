@@ -122,13 +122,19 @@ async def lifespan(app: FastAPI):
         # 这里使用内存存储 也可以持久化到数据库
         memory = MemorySaver()
 
-        # 创建ReAct风格的agent
-        agent = create_react_agent(
-            model=llm_chat,
-            tools=[],
-            prompt=system_message,
-            # checkpointer=memory,
-        )
+        # 检查 llm_chat 类型，如果是 HuggingFacePipeline，则使用不同的处理方式
+        if hasattr(llm_chat, 'pipeline'):
+            # 对于 HuggingFacePipeline，我们不使用 create_react_agent
+            # 直接使用模型进行推理
+            agent = llm_chat
+        else:
+            # 对于 ChatOpenAI 等模型，使用 create_react_agent
+            agent = create_react_agent(
+                model=llm_chat,
+                tools=[],
+                prompt=system_message,
+                # checkpointer=memory,
+            )
 
         # 保存状态图的可视化表示
         # save_graph_visualization(agent)
@@ -214,7 +220,18 @@ async def chat_translate(request: ChatCompletionRequest, dependencies: Tuple[any
         input_message = HumanMessage(content=rag_prompt + direction_tip + user_input)
 
         # 调用非流式输出
-        output_message = await agent.ainvoke({"messages": [input_message]}, config)
+        # 检查 agent 类型并使用相应的调用方式
+        if hasattr(agent, 'pipeline'):
+            # 对于 HuggingFacePipeline，直接调用，但需要传递正确的内容
+            # HuggingFacePipeline 需要直接传递消息内容而不是 HumanMessage 对象
+            full_prompt = rag_prompt + direction_tip + user_input
+            response = agent.invoke(full_prompt)
+            # 构造符合预期格式的响应
+            from langchain_core.messages import AIMessage
+            output_message = {"messages": [AIMessage(content=response)]}
+        else:
+            # 对于其他模型，使用 agent.ainvoke
+            output_message = await agent.ainvoke({"messages": [input_message]}, config)
         logger.info(f"The output_message is: {output_message}")
         return output_message
 

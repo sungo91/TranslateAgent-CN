@@ -1,7 +1,10 @@
 import os
 from langchain_openai import ChatOpenAI,OpenAIEmbeddings
+from langchain_huggingface import HuggingFacePipeline
 import logging
 from dotenv import load_dotenv
+import torch
+from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
 
 """
 @File    : llms.py
@@ -30,6 +33,11 @@ MODEL_CONFIGS = {
         "base_url": os.getenv("CHATGLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4/"),
         "api_key": os.getenv("CHATGLM_API_KEY", "api_key"),
         "chat_model": os.getenv("CHATGLM_CHAT_MODEL", "glm-4-flash")
+    },
+    "huggingface": {
+        "model_name": os.getenv("HF_MODEL_NAME", "Qwen/Qwen3-4B-Instruct"),
+        "device": os.getenv("HF_DEVICE", "cuda" if torch.cuda.is_available() else "cpu"),
+        "torch_dtype": os.getenv("HF_TORCH_DTYPE", "float16" if torch.cuda.is_available() else "float32")
     }
 }
 
@@ -44,15 +52,74 @@ class LLMInitializationError(Exception):
     pass
 
 
+def initialize_huggingface_llm(config):
+    """
+    初始化HuggingFace模型实例
+
+    Args:
+        config (dict): HuggingFace模型配置
+
+    Returns:
+        HuggingFacePipeline: 初始化后的HuggingFace模型实例
+    """
+    try:
+        model_name = config["model_name"]
+        device = config["device"]
+
+        # 处理torch_dtype
+        if config["torch_dtype"] == "float16":
+            torch_dtype = torch.float16
+        elif config["torch_dtype"] == "float32":
+            torch_dtype = torch.float32
+        elif config["torch_dtype"] == "bfloat16":
+            torch_dtype = torch.bfloat16
+        else:
+            torch_dtype = "auto"
+
+        # 加载tokenizer和model
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        # 传统方式加载模型
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype=torch_dtype,
+            low_cpu_mem_usage=True
+        )
+        # 移动模型到指定设备
+        if device == "cuda" and torch.cuda.is_available():
+            model = model.to("cuda")
+        else:
+            model = model.to("cpu")
+
+        # 创建pipeline
+        pipe = pipeline(
+            "text-generation",
+            model=model,
+            tokenizer=tokenizer,
+            max_new_tokens=512,
+            temperature=DEFAULT_TEMPERATURE,
+            do_sample=True,
+            device=0 if device == "cuda" and torch.cuda.is_available() else -1
+        )
+
+        # 创建HuggingFacePipeline实例
+        llm = HuggingFacePipeline(pipeline=pipe)
+
+        logger.info(f"成功初始化HuggingFace模型: {model_name}")
+        return llm
+
+    except Exception as e:
+        logger.error(f"初始化HuggingFace模型失败: {str(e)}")
+        raise LLMInitializationError(f"初始化HuggingFace模型失败: {str(e)}")
+
 def initialize_llm(llm_type: str = DEFAULT_LLM_TYPE) -> tuple[ChatOpenAI]:
     """
     初始化LLM实例
 
     Args:
-        llm_type (str): LLM类型，可选值为 'openai', 'oneapi', 'qwen', 'ollama'
+        llm_type (str): LLM类型，可选值为 'chatglm', 'huggingface', 'ollama'
 
-    Returns:
-        ChatOpenAI: 初始化后的LLM实例
+  Returns:
+        Union[ChatOpenAI, HuggingFacePipeline]: LLM实例
 
     Raises:
         LLMInitializationError: 当LLM初始化失败时抛出
@@ -63,6 +130,10 @@ def initialize_llm(llm_type: str = DEFAULT_LLM_TYPE) -> tuple[ChatOpenAI]:
             raise ValueError(f"不支持的LLM类型: {llm_type}. 可用的类型: {list(MODEL_CONFIGS.keys())}")
 
         config = MODEL_CONFIGS[llm_type]
+
+        # 特殊处理huggingface类型
+        if llm_type == "huggingface":
+            return initialize_huggingface_llm(config)
 
         # 特殊处理ollama类型
         if llm_type == "ollama":
@@ -103,8 +174,8 @@ def get_llm(llm_type: str = DEFAULT_LLM_TYPE) -> ChatOpenAI:
     Args:
         llm_type (str): LLM类型
 
-    Returns:
-        ChatOpenAI: LLM实例
+  Returns:
+        Union[ChatOpenAI, HuggingFacePipeline]: LLM实例
     """
     try:
         return initialize_llm(llm_type)
