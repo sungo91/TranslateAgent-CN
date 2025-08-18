@@ -23,7 +23,7 @@ def is_port_open(host, port):
         return False
 
 
-def wait_for_fastapi_startup(host='localhost', port=8000, timeout=30):
+def wait_for_fastapi_startup(host='localhost', port=8000, timeout=60):
     """等待FastAPI服务启动完成"""
     print(f"等待FastAPI服务在 {host}:{port} 上启动...")
     start_time = time.time()
@@ -49,7 +49,7 @@ def start_services():
     # 等待FastAPI服务完全启动
     if wait_for_fastapi_startup(port=Config.PORT):
         # 前台启动 Gradio（主进程，保持容器不退出）
-        gradio_process = subprocess.Popen([sys.executable, 'webUI.py'])
+        gradio_process = subprocess.Popen([sys.executable, 'webUI_v2.py'])
         print("Gradio服务启动")
     else:
         print("FastAPI服务启动失败，无法启动Gradio服务")
