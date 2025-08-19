@@ -222,12 +222,12 @@ with gr.Blocks() as demo:
                 transition: all 0.3s ease !important;
             }
             .nav-button-primary {
-                background: linear-gradient(45deg, #4CAF50, #45a049) !important;
+                background: linear-gradient(45deg, #2196F3, #1976D2) !important;
                 color: white !important;
                 border: none !important;
             }
             .nav-button-secondary {
-                background: linear-gradient(45deg, #2196F3, #1976D2) !important;
+                background: linear-gradient(45deg, #BBDEFB, #90CAF9) !important;
                 color: white !important;
                 border: none !important;
             }
@@ -345,8 +345,6 @@ with gr.Blocks() as demo:
                 kb_load_btn = gr.Button("🧠 构建向量数据库")
                 kb_status_output = gr.Textbox(label="操作状态")
 
-                # 知识库列表区
-                gr.Markdown("### 已加载的知识库")
                 # 使用 State 来存储当前的知识库列表
                 kb_list_state = gr.State(value=get_collections_list())  # 初始化状态
 
